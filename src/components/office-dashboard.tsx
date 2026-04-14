@@ -64,7 +64,7 @@ export function OfficeDashboard() {
   const [selectedDeskId, setSelectedDeskId] = useState<string>("desk-01");
   const [weekSlots, setWeekSlots] = useState<DeskWeekSlot[]>([]);
   const [dayModeByIndex, setDayModeByIndex] = useState<Record<number, WorkMode>>({});
-  const [selectedDayIndexes, setSelectedDayIndexes] = useState<number[]>(() => [getDayIndexFromDateKey(getTodayDateKey())]);
+  const [selectedDayIndexes, setSelectedDayIndexes] = useState<number[]>([]);
   const [hoveredDeskId, setHoveredDeskId] = useState<string | null>(null);
   const [hoverTooltipPosition, setHoverTooltipPosition] = useState<{ left: number; top: number } | null>(null);
   const [hoverTimelineByDesk, setHoverTimelineByDesk] = useState<Record<string, DeskWeekSlot[]>>({});
@@ -203,12 +203,12 @@ export function OfficeDashboard() {
 
   const onSelectedDateChange = useCallback((nextDate: string) => {
     setSelectedDate(nextDate);
-    setSelectedDayIndexes([getDayIndexFromDateKey(nextDate)]);
+    setSelectedDayIndexes([]);
   }, []);
 
   const handleDeskSelect = useCallback((deskId: string) => {
     if (deskId !== selectedDeskId) {
-      setSelectedDayIndexes([getDayIndexFromDateKey(selectedDate)]);
+      setSelectedDayIndexes([]);
       setDayModeByIndex({});
       setName("");
       setNote("");
@@ -544,6 +544,15 @@ export function OfficeDashboard() {
 
     void loadWeekSlots(selectedDeskId);
   }, [loadWeekSlots, selectedDeskId]);
+
+  useEffect(() => {
+    const busyDays = weekSlots
+      .filter((slot) => Boolean(slot.owner))
+      .map((slot) => slot.dayIndex)
+      .sort((a, b) => a - b);
+
+    setSelectedDayIndexes(busyDays);
+  }, [weekSlots]);
 
   useEffect(() => {
     const eventSource = new EventSource("/api/events");
