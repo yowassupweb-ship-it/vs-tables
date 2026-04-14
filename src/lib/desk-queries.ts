@@ -124,12 +124,23 @@ export async function getDesksMapData(dateKey?: string): Promise<DeskMapItem[]> 
       };
     });
 
-    const customDeskIds = new Set(dbDesks.map((desk: { id: string }) => desk.id));
+    const customDeskIds = new Set(layout.customDesks.map((desk) => desk.id));
+    const fallbackCustomState = getFallbackDesksMapData(dateKey, {
+      deskOverrides: layout.deskOverrides,
+      deskLabelOverrides: layout.deskLabelOverrides,
+      customDesks: layout.customDesks,
+      unifiedSize: { width: UNIFIED_DESK_WIDTH, height: UNIFIED_DESK_HEIGHT },
+    }).filter((desk) => customDeskIds.has(desk.id));
+
+    const customStateById = new Map(fallbackCustomState.map((desk) => [desk.id, desk]));
+
+    const dbDeskIds = new Set(dbDesks.map((desk: { id: string }) => desk.id));
     const customDesks = layout.customDesks
-      .filter((desk) => !customDeskIds.has(desk.id))
+      .filter((desk) => !dbDeskIds.has(desk.id))
       .map((desk) => {
         const deskOverride = layout.deskOverrides[desk.id];
         const labelOverride = layout.deskLabelOverrides[desk.id];
+        const customState = customStateById.get(desk.id);
 
         return {
           id: desk.id,
@@ -138,9 +149,9 @@ export async function getDesksMapData(dateKey?: string): Promise<DeskMapItem[]> 
           y: deskOverride?.y ?? desk.y,
           width: UNIFIED_DESK_WIDTH,
           height: UNIFIED_DESK_HEIGHT,
-          currentOwner: null,
-          currentNote: null,
-          occupiedSince: null,
+          currentOwner: customState?.currentOwner ?? null,
+          currentNote: customState?.currentNote ?? null,
+          occupiedSince: customState?.occupiedSince ?? null,
         };
       });
 
@@ -162,6 +173,11 @@ export async function getDesksMapData(dateKey?: string): Promise<DeskMapItem[]> 
 
 export async function getDeskHistory(deskId: string): Promise<DeskChartPoint[]> {
   try {
+    const layout = await getLayoutPayload();
+    if (layout.customDesks.some((desk) => desk.id === deskId)) {
+      return getFallbackDeskHistory(deskId);
+    }
+
     const fromDate = subDays(new Date(), 13);
 
     const reservations = await prisma.deskReservation.findMany({
@@ -202,6 +218,11 @@ export async function getDeskHistory(deskId: string): Promise<DeskChartPoint[]> 
 
 export async function getDeskWeekSlots(deskId: string, anchorDate?: string): Promise<DeskWeekSlot[]> {
   try {
+    const layout = await getLayoutPayload();
+    if (layout.customDesks.some((desk) => desk.id === deskId)) {
+      return getFallbackDeskWeekSlots(deskId, anchorDate);
+    }
+
     const parsedAnchor = anchorDate ? new Date(`${anchorDate}T00:00:00`) : new Date();
     const safeAnchor = Number.isNaN(parsedAnchor.getTime()) ? new Date() : parsedAnchor;
     const weekStart = startOfWeek(safeAnchor, { weekStartsOn: 1 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { formatDistanceToNow, format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { OFFICE_WALL_SEGMENTS, type WallSegment } from "@/lib/desk-layout";
@@ -123,6 +124,19 @@ export function OfficeDashboard() {
     return [...baseWalls, ...customWalls];
   }, [removedWallIds, wallOverrides]);
 
+  const hoveredDesk = useMemo(
+    () => desksWithOverrides.find((desk) => desk.id === hoveredDeskId) ?? null,
+    [desksWithOverrides, hoveredDeskId],
+  );
+
+  const hoveredDeskSlots = useMemo(() => {
+    if (!hoveredDeskId) {
+      return [] as DeskWeekSlot[];
+    }
+
+    return hoverTimelineByDesk[`${hoveredDeskId}:${selectedDate}`] ?? [];
+  }, [hoverTimelineByDesk, hoveredDeskId, selectedDate]);
+
   const parseJsonSafe = useCallback(async <T,>(response: Response): Promise<T | null> => {
     const raw = await response.text();
     if (!raw) {
@@ -155,6 +169,11 @@ export function OfficeDashboard() {
 
     return format(date, "EEEE, d MMMM", { locale: ru });
   }, [selectedDate]);
+
+  const onSelectedDateChange = useCallback((nextDate: string) => {
+    setSelectedDate(nextDate);
+    setSelectedDayIndexes([getDayIndexFromDateKey(nextDate)]);
+  }, []);
 
   useEffect(() => {
     const raw = localStorage.getItem("office-map-layout-overrides");
@@ -911,7 +930,7 @@ export function OfficeDashboard() {
               <input
                 type="date"
                 value={selectedDate}
-                onChange={(event) => setSelectedDate(event.target.value)}
+                onChange={(event) => onSelectedDateChange(event.target.value)}
               />
             </label>
             <p>{selectedDateLabel}</p>
@@ -1015,8 +1034,6 @@ export function OfficeDashboard() {
           {desksWithOverrides.map((desk) => {
             const isSelected = desk.id === selectedDeskId;
             const isBusy = Boolean(desk.currentOwner);
-            const hoverSlots = hoverTimelineByDesk[`${desk.id}:${selectedDate}`] ?? [];
-            const showTooltip = !layoutEditMode && hoveredDeskId === desk.id;
 
             return (
               <button
@@ -1041,12 +1058,12 @@ export function OfficeDashboard() {
 
                   const rect = event.currentTarget.getBoundingClientRect();
                   const tooltipWidth = 220;
-                  const gap = 10;
+                  const gap = 6;
                   const placeLeft = rect.right + tooltipWidth + gap > window.innerWidth;
                   const left = placeLeft
                     ? Math.max(8, rect.left - tooltipWidth - gap)
                     : Math.min(window.innerWidth - tooltipWidth - 8, rect.right + gap);
-                  const top = Math.max(8, Math.min(window.innerHeight - 240, rect.top));
+                  const top = Math.max(8, Math.min(window.innerHeight - 240, rect.top + rect.height / 2 - 100));
 
                   setHoverTooltipPosition({ left, top });
                   setHoveredDeskId(desk.id);
@@ -1058,35 +1075,37 @@ export function OfficeDashboard() {
                 }}
               >
                 <span style={{ transform: "rotate(calc(-1 * var(--desk-rotation)))" }}>{desk.label}</span>
-
-                {showTooltip ? (
-                  <div
-                    className="desk-hover-timeline"
-                    style={{
-                      left: `${hoverTooltipPosition?.left ?? 8}px`,
-                      top: `${hoverTooltipPosition?.top ?? 8}px`,
-                      transform: "rotate(calc(-1 * var(--desk-rotation)))",
-                    }}
-                  >
-                    <p className="hover-title">Стол {desk.label}</p>
-                    {hoverSlots.length > 0 ? (
-                      <div className="hover-days">
-                        {hoverSlots.map((slot) => (
-                          <div key={slot.dayIndex} className={`hover-day-row ${slot.owner ? "busy" : "free"}`}>
-                            <span>{slot.dayLabel}</span>
-                            <span>{slot.owner ?? "свободно"}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="hover-loading">Загрузка...</p>
-                    )}
-                  </div>
-                ) : null}
               </button>
             );
           })}
         </div>
+
+        {!layoutEditMode && hoveredDesk && hoverTooltipPosition && typeof document !== "undefined"
+          ? createPortal(
+            <div
+              className="desk-hover-timeline"
+              style={{
+                left: `${hoverTooltipPosition.left}px`,
+                top: `${hoverTooltipPosition.top}px`,
+              }}
+            >
+              <p className="hover-title">Стол {hoveredDesk.label}</p>
+              {hoveredDeskSlots.length > 0 ? (
+                <div className="hover-days">
+                  {hoveredDeskSlots.map((slot) => (
+                    <div key={slot.dayIndex} className={`hover-day-row ${slot.owner ? "busy" : "free"}`}>
+                      <span>{slot.dayLabel}</span>
+                      <span>{slot.owner ?? "свободно"}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="hover-loading">Загрузка...</p>
+              )}
+            </div>,
+            document.body,
+          )
+          : null}
       </section>
 
       <section className="panel details-panel">
