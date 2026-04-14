@@ -1,7 +1,9 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import * as PrismaClientPkg from "@prisma/client";
 import { DESK_LAYOUT } from "../src/lib/desk-layout";
+
+const PrismaClient = (PrismaClientPkg as unknown as { PrismaClient: new (...args: any[]) => any }).PrismaClient;
 
 const connectionString = process.env.DATABASE_URL;
 
