@@ -24,6 +24,21 @@ model Desk {
   width        Int
   height       Int
   reservations DeskReservation[]
+  dayModes      DeskDayMode[]
+}
+
+model DeskDayMode {
+  id        String   @id @default(cuid())
+  deskId    String
+  dateKey   String
+  workMode  WorkMode @default(office)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  desk Desk @relation(fields: [deskId], references: [id], onDelete: Cascade)
+
+  @@unique([deskId, dateKey])
+  @@index([deskId, dateKey])
 }
 
 model DeskReservation {

@@ -28,6 +28,7 @@ type FallbackReservation = {
 
 type FallbackStore = {
   reservations: FallbackReservation[];
+  dayModes: Record<string, "office" | "remote">;
 };
 
 const globalStore = globalThis as typeof globalThis & {
@@ -36,7 +37,7 @@ const globalStore = globalThis as typeof globalThis & {
 
 function getStore(): FallbackStore {
   if (!globalStore.fallbackStore) {
-    globalStore.fallbackStore = { reservations: [] };
+    globalStore.fallbackStore = { reservations: [], dayModes: {} };
   }
 
   return globalStore.fallbackStore;
@@ -141,9 +142,14 @@ export function getFallbackDeskWeekSlots(deskId: string, anchorDate?: string) {
       date: key,
       owner: reservation?.userName ?? null,
       note: reservation?.note ?? null,
-      workMode: reservation?.workMode ?? "office",
+      workMode: reservation?.workMode ?? store.dayModes[`${deskId}:${key}`] ?? "office",
     };
   });
+}
+
+export function setFallbackDeskDayMode(deskId: string, dateKey: string, workMode: "office" | "remote") {
+  const store = getStore();
+  store.dayModes[`${deskId}:${dateKey}`] = workMode;
 }
 
 type FallbackClaimInput = {
@@ -176,6 +182,7 @@ export function claimFallbackDesk(input: FallbackClaimInput) {
       const dayStart = startOfDay(addDays(weekStart, weekOffset * 7 + dayIndex - 1));
       const dayKey = dayStart.toISOString().slice(0, 10);
       const workMode = workModeByDay?.[String(dayIndex)] ?? "office";
+      store.dayModes[`${deskId}:${dayKey}`] = workMode;
 
       const active = store.reservations
         .filter(

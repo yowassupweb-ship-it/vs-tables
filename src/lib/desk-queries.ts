@@ -4,6 +4,7 @@ import { isDatabaseUnavailableError } from "@/lib/db-errors";
 import { getLayoutPayload } from "@/lib/layout-store";
 import {
   getFallbackDeskHistory,
+  setFallbackDeskDayMode,
   getFallbackDeskWeekSlots,
   getFallbackDesksMapData,
 } from "@/lib/fallback-store";
@@ -246,6 +247,24 @@ export async function getDeskWeekSlots(deskId: string, anchorDate?: string): Pro
       },
     });
 
+    const dayModes = await prisma.deskDayMode.findMany({
+      where: {
+        deskId,
+        dateKey: {
+          gte: weekStart.toISOString().slice(0, 10),
+          lt: weekEnd.toISOString().slice(0, 10),
+        },
+      },
+      select: {
+        dateKey: true,
+        workMode: true,
+      },
+    });
+
+    const modeByDay = new Map<string, "office" | "remote">(
+      dayModes.map((item: { dateKey: string; workMode: "office" | "remote" }) => [item.dateKey, item.workMode]),
+    );
+
     const byDay = new Map<string, { owner: string; note: string | null; workMode: "office" | "remote" }>();
     for (const reservation of reservations) {
       const key = reservation.startAt.toISOString().slice(0, 10);
@@ -269,12 +288,46 @@ export async function getDeskWeekSlots(deskId: string, anchorDate?: string): Pro
         date: key,
         owner: slot?.owner ?? null,
         note: slot?.note ?? null,
-        workMode: slot?.workMode ?? "office",
+        workMode: modeByDay.get(key) ?? slot?.workMode ?? "office",
       };
     });
   } catch (error) {
     if (isDatabaseUnavailableError(error)) {
       return getFallbackDeskWeekSlots(deskId, anchorDate);
+    }
+
+    throw error;
+  }
+}
+
+export async function saveDeskDayMode(deskId: string, dateKey: string, workMode: "office" | "remote") {
+  try {
+    const desk = await prisma.desk.findUnique({ where: { id: deskId }, select: { id: true } });
+    if (!desk) {
+      setFallbackDeskDayMode(deskId, dateKey, workMode);
+      return;
+    }
+
+    await prisma.deskDayMode.upsert({
+      where: {
+        deskId_dateKey: {
+          deskId,
+          dateKey,
+        },
+      },
+      update: {
+        workMode,
+      },
+      create: {
+        deskId,
+        dateKey,
+        workMode,
+      },
+    });
+  } catch (error) {
+    if (isDatabaseUnavailableError(error)) {
+      setFallbackDeskDayMode(deskId, dateKey, workMode);
+      return;
     }
 
     throw error;

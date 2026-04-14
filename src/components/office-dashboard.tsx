@@ -706,12 +706,36 @@ export function OfficeDashboard() {
     });
   }, []);
 
-  const setDayMode = useCallback((dayIndex: number, mode: WorkMode) => {
+  const setDayMode = useCallback(async (dayIndex: number, mode: WorkMode) => {
     setDayModeByIndex((current) => ({
       ...current,
       [dayIndex]: mode,
     }));
-  }, []);
+
+    if (!selectedDeskId) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/desks/${selectedDeskId}/week`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          dayIndex,
+          anchorDate: selectedDate,
+          workMode: mode,
+        }),
+      });
+
+      if (!response.ok) {
+        setError("Не удалось сохранить режим дня");
+      }
+    } catch {
+      setError("Сервер недоступен");
+    }
+  }, [selectedDate, selectedDeskId]);
 
   useEffect(() => {
     setDayModeByIndex((current) => {
@@ -1191,7 +1215,9 @@ export function OfficeDashboard() {
                     <select
                       className="week-mode-select"
                       value={dayModeByIndex[slot.dayIndex] ?? "office"}
-                      onChange={(event) => setDayMode(slot.dayIndex, event.target.value as WorkMode)}
+                      onChange={(event) => {
+                        void setDayMode(slot.dayIndex, event.target.value as WorkMode);
+                      }}
                     >
                       <option value="office">Офис</option>
                       <option value="remote">Удаленка</option>
