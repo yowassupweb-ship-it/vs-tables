@@ -61,6 +61,7 @@ export function OfficeDashboard() {
   const [weekSlots, setWeekSlots] = useState<DeskWeekSlot[]>([]);
   const [selectedDayIndexes, setSelectedDayIndexes] = useState<number[]>(() => [getDayIndexFromDateKey(getTodayDateKey())]);
   const [hoveredDeskId, setHoveredDeskId] = useState<string | null>(null);
+  const [hoverTooltipPosition, setHoverTooltipPosition] = useState<{ left: number; top: number } | null>(null);
   const [hoverTimelineByDesk, setHoverTimelineByDesk] = useState<Record<string, DeskWeekSlot[]>>({});
   const [selectedDate, setSelectedDate] = useState<string>(getTodayDateKey());
   const [name, setName] = useState("");
@@ -1016,7 +1017,6 @@ export function OfficeDashboard() {
             const isBusy = Boolean(desk.currentOwner);
             const hoverSlots = hoverTimelineByDesk[`${desk.id}:${selectedDate}`] ?? [];
             const showTooltip = !layoutEditMode && hoveredDeskId === desk.id;
-            const tooltipLeft = desk.x > 75 ? `calc(${desk.x}% - 208px)` : `calc(${desk.x + desk.width + 1.2}%)`;
 
             return (
               <button
@@ -1034,14 +1034,28 @@ export function OfficeDashboard() {
                 onClick={() => setSelectedDeskId(desk.id)}
                 onMouseDown={(event) => startDeskDrag(event, desk)}
                 onDoubleClick={() => renameDesk(desk)}
-                onMouseEnter={() => {
+                onMouseEnter={(event) => {
                   if (layoutEditMode) {
                     return;
                   }
+
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  const tooltipWidth = 220;
+                  const gap = 10;
+                  const placeLeft = rect.right + tooltipWidth + gap > window.innerWidth;
+                  const left = placeLeft
+                    ? Math.max(8, rect.left - tooltipWidth - gap)
+                    : Math.min(window.innerWidth - tooltipWidth - 8, rect.right + gap);
+                  const top = Math.max(8, Math.min(window.innerHeight - 240, rect.top));
+
+                  setHoverTooltipPosition({ left, top });
                   setHoveredDeskId(desk.id);
                   void loadHoverTimeline(desk.id);
                 }}
-                onMouseLeave={() => setHoveredDeskId((current) => (current === desk.id ? null : current))}
+                onMouseLeave={() => {
+                  setHoveredDeskId((current) => (current === desk.id ? null : current));
+                  setHoverTooltipPosition(null);
+                }}
               >
                 <span style={{ transform: "rotate(calc(-1 * var(--desk-rotation)))" }}>{desk.label}</span>
 
@@ -1049,8 +1063,8 @@ export function OfficeDashboard() {
                   <div
                     className="desk-hover-timeline"
                     style={{
-                      left: tooltipLeft,
-                      top: `${desk.y}%`,
+                      left: `${hoverTooltipPosition?.left ?? 8}px`,
+                      top: `${hoverTooltipPosition?.top ?? 8}px`,
                       transform: "rotate(calc(-1 * var(--desk-rotation)))",
                     }}
                   >
