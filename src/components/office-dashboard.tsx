@@ -1007,7 +1007,8 @@ export function OfficeDashboard() {
           {layoutStatus ? <p>{layoutStatus}</p> : null}
         </div>
 
-        <div className="office-canvas" role="list" aria-label="Карта офисных столов" ref={canvasRef}>
+        <div className="office-canvas-scroll">
+          <div className="office-canvas" role="list" aria-label="Карта офисных столов" ref={canvasRef}>
           {wallSegmentsWithOverrides.map((wall) => {
             const minX = Math.min(wall.x1, wall.x2);
             const minY = Math.min(wall.y1, wall.y2);
@@ -1078,6 +1079,7 @@ export function OfficeDashboard() {
               </button>
             );
           })}
+          </div>
         </div>
 
         {!layoutEditMode && hoveredDesk && hoverTooltipPosition && typeof document !== "undefined"
