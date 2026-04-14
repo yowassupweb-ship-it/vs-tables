@@ -175,6 +175,16 @@ export function OfficeDashboard() {
     setSelectedDayIndexes([getDayIndexFromDateKey(nextDate)]);
   }, []);
 
+  const handleDeskSelect = useCallback((deskId: string) => {
+    if (deskId !== selectedDeskId) {
+      setName("");
+      setNote("");
+      setError(null);
+    }
+
+    setSelectedDeskId(deskId);
+  }, [selectedDeskId]);
+
   useEffect(() => {
     const raw = localStorage.getItem("office-map-layout-overrides");
     if (!raw) {
@@ -1037,7 +1047,7 @@ export function OfficeDashboard() {
                   ["--desk-rotation" as string]: `${getDeskRotation(desk.id)}deg`,
                   transform: `rotate(${getDeskRotation(desk.id)}deg)`,
                 }}
-                onClick={() => setSelectedDeskId(desk.id)}
+                onClick={() => handleDeskSelect(desk.id)}
                 onMouseDown={(event) => startDeskDrag(event, desk)}
                 onDoubleClick={() => renameDesk(desk)}
                 onMouseEnter={(event) => {
