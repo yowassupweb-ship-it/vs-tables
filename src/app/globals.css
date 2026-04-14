@@ -150,7 +150,6 @@ a {
 
 .office-canvas {
   position: relative;
-  margin-top: 14px;
   min-height: 620px;
   aspect-ratio: 858 / 612;
   border-radius: 10px;
@@ -161,6 +160,14 @@ a {
     var(--bg-soft);
   background-size: 25px 25px;
   overflow: hidden;
+}
+
+.office-canvas-scroll {
+  margin-top: 14px;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
 }
 
 .wall-segment {
@@ -422,12 +429,145 @@ a {
   }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 900px) {
   body {
     padding: 14px;
   }
 
+  .main-wrap {
+    width: 100%;
+  }
+
+  .panel {
+    border-radius: 16px;
+  }
+
+  .map-panel,
+  .details-panel,
+  .chart-panel {
+    padding: 14px;
+  }
+
+  .panel-title-row h2,
+  .panel-title-row h3 {
+    font-size: 20px;
+  }
+
+  .date-pick-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .date-pick-row label {
+    width: 100%;
+    max-width: 240px;
+  }
+
+  .date-pick-row input {
+    min-height: 40px;
+  }
+
+  .layout-tools-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: thin;
+  }
+
+  .layout-reset-btn {
+    white-space: nowrap;
+    min-height: 36px;
+  }
+
+  .office-canvas-scroll {
+    margin-left: -14px;
+    margin-right: -14px;
+    padding: 0 14px 8px;
+  }
+
   .office-canvas {
-    min-height: 460px;
+    min-width: 900px;
+    min-height: 560px;
+  }
+
+  .week-slot {
+    grid-template-columns: 20px 32px 52px 1fr;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .week-owner {
+    font-size: 11px;
+    line-height: 1.25;
+    word-break: break-word;
+  }
+
+  .desk-form input {
+    min-height: 40px;
+  }
+}
+
+@media (max-width: 700px) {
+  body {
+    padding: 10px;
+  }
+
+  .panel {
+    border-radius: 14px;
+  }
+
+  .map-panel,
+  .details-panel,
+  .chart-panel {
+    padding: 12px;
+  }
+
+  .panel-title-row h2,
+  .panel-title-row h3 {
+    font-size: 18px;
+  }
+
+  .date-pick-row {
+    gap: 8px;
+  }
+
+  .date-pick-row p {
+    font-size: 13px;
+  }
+
+  .office-canvas {
+    min-width: 860px;
+    min-height: 520px;
+  }
+
+  .office-canvas-scroll {
+    padding-bottom: 6px;
+  }
+
+  .desk-hover-timeline {
+    min-width: 170px;
+    max-width: 190px;
+  }
+
+  .actions-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .layout-switch {
+    font-size: 12px;
+  }
+
+  .week-slot {
+    grid-template-columns: 18px 28px 46px 1fr;
+    gap: 6px;
+    padding: 7px;
+  }
+
+  .week-day,
+  .week-date,
+  .week-owner {
+    font-size: 11px;
   }
 }
