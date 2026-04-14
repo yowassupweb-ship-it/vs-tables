@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, FormEvent, MouseEvent as ReactMouseEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatDistanceToNow, format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { OFFICE_WALL_SEGMENTS, type WallSegment } from "@/lib/desk-layout";
@@ -32,6 +32,15 @@ type DeskWeekSlot = {
   date: string;
   owner: string | null;
   note: string | null;
+};
+
+type LayoutSnapshot = {
+  deskOverrides: Record<string, { x: number; y: number }>;
+  deskRotationOverrides: Record<string, number>;
+  customDesks: CustomDesk[];
+  wallOverrides: Record<string, WallSegment>;
+  removedWallIds: string[];
+  deskLabelOverrides: Record<string, string>;
 };
 
 const fullNameRegex = /^[A-Za-zА-Яа-яЁё-]+\s+[A-Za-zА-Яа-яЁё-]+(?:\s+[A-Za-zА-Яа-яЁё-]+)*$/;
@@ -72,6 +81,7 @@ export function OfficeDashboard() {
   const [deskLabelOverrides, setDeskLabelOverrides] = useState<Record<string, string>>({});
 
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const importLayoutInputRef = useRef<HTMLInputElement | null>(null);
   const deskDragRef = useRef<{ deskId: string; offsetX: number; offsetY: number } | null>(null);
   const wallDragRef = useRef<{
     wallId: string;
@@ -536,6 +546,76 @@ export function OfficeDashboard() {
     }
   }, [customDesks, deskLabelOverrides, deskOverrides, deskRotationOverrides, removedWallIds, wallOverrides]);
 
+  const exportLayoutToFile = useCallback(() => {
+    const snapshot: LayoutSnapshot = {
+      deskOverrides,
+      deskRotationOverrides,
+      customDesks,
+      wallOverrides,
+      removedWallIds,
+      deskLabelOverrides,
+    };
+
+    const fileName = `office-layout-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`;
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+    setLayoutStatus("Файл расстановки сохранен");
+  }, [customDesks, deskLabelOverrides, deskOverrides, deskRotationOverrides, removedWallIds, wallOverrides]);
+
+  const applyLayoutSnapshot = useCallback((snapshot: LayoutSnapshot) => {
+    setDeskOverrides(snapshot.deskOverrides ?? {});
+    setDeskRotationOverrides(snapshot.deskRotationOverrides ?? {});
+    setCustomDesks(snapshot.customDesks ?? []);
+    setWallOverrides(snapshot.wallOverrides ?? {});
+    setRemovedWallIds(snapshot.removedWallIds ?? []);
+    setDeskLabelOverrides(snapshot.deskLabelOverrides ?? {});
+  }, []);
+
+  const onImportLayoutFile = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result ?? "{}")) as Partial<LayoutSnapshot>;
+        const snapshot: LayoutSnapshot = {
+          deskOverrides: parsed.deskOverrides ?? {},
+          deskRotationOverrides: parsed.deskRotationOverrides ?? {},
+          customDesks: parsed.customDesks ?? [],
+          wallOverrides: parsed.wallOverrides ?? {},
+          removedWallIds: parsed.removedWallIds ?? [],
+          deskLabelOverrides: parsed.deskLabelOverrides ?? {},
+        };
+
+        applyLayoutSnapshot(snapshot);
+        setLayoutStatus("Расстановка импортирована из файла");
+      } catch {
+        setLayoutStatus("Некорректный файл расстановки");
+      } finally {
+        event.target.value = "";
+      }
+    };
+
+    reader.onerror = () => {
+      setLayoutStatus("Не удалось прочитать файл");
+      event.target.value = "";
+    };
+
+    reader.readAsText(file);
+  }, [applyLayoutSnapshot]);
+
   const restoreLayoutFromServer = useCallback(async () => {
     setLayoutBusy(true);
     setLayoutStatus(null);
@@ -868,6 +948,17 @@ export function OfficeDashboard() {
                 <button type="button" className="layout-reset-btn" disabled={layoutBusy} onClick={() => void restoreLayoutFromServer()}>
                   Загрузить с сервера
                 </button>
+                <button type="button" className="layout-reset-btn" disabled={layoutBusy} onClick={exportLayoutToFile}>
+                  Экспорт JSON
+                </button>
+                <button
+                  type="button"
+                  className="layout-reset-btn"
+                  disabled={layoutBusy}
+                  onClick={() => importLayoutInputRef.current?.click()}
+                >
+                  Импорт JSON
+                </button>
                 <button type="button" className="layout-reset-btn" disabled={layoutBusy || !selectedDesk} onClick={() => void copySelectedDesk()}>
                   Копировать выбранный стол
                 </button>
@@ -886,6 +977,13 @@ export function OfficeDashboard() {
               </>
             ) : null}
           </div>
+          <input
+            ref={importLayoutInputRef}
+            type="file"
+            accept="application/json"
+            onChange={onImportLayoutFile}
+            style={{ display: "none" }}
+          />
           {layoutStatus ? <p>{layoutStatus}</p> : null}
         </div>
 
