@@ -21,6 +21,7 @@ type FallbackReservation = {
   deskId: string;
   userName: string;
   note: string | null;
+  workMode: "office" | "remote";
   startAt: Date;
   endAt: Date | null;
 };
@@ -140,6 +141,7 @@ export function getFallbackDeskWeekSlots(deskId: string, anchorDate?: string) {
       date: key,
       owner: reservation?.userName ?? null,
       note: reservation?.note ?? null,
+      workMode: reservation?.workMode ?? "office",
     };
   });
 }
@@ -150,13 +152,14 @@ type FallbackClaimInput = {
   note: string;
   action: "claim" | "release";
   days: number[];
+  workModeByDay?: Record<string, "office" | "remote">;
   anchorDate?: string;
   repeatWeeks?: number;
   knownDeskIds?: string[];
 };
 
 export function claimFallbackDesk(input: FallbackClaimInput) {
-  const { action, deskId, name, note, days, anchorDate, repeatWeeks = 1 } = input;
+  const { action, deskId, name, note, days, workModeByDay, anchorDate, repeatWeeks = 1 } = input;
   const store = getStore();
 
   const knownDeskIds = new Set([...(input.knownDeskIds ?? []), ...DESK_LAYOUT.map((item) => item.id)]);
@@ -172,6 +175,7 @@ export function claimFallbackDesk(input: FallbackClaimInput) {
     for (const dayIndex of days) {
       const dayStart = startOfDay(addDays(weekStart, weekOffset * 7 + dayIndex - 1));
       const dayKey = dayStart.toISOString().slice(0, 10);
+      const workMode = workModeByDay?.[String(dayIndex)] ?? "office";
 
       const active = store.reservations
         .filter(
@@ -199,6 +203,7 @@ export function claimFallbackDesk(input: FallbackClaimInput) {
 
       if (active && active.userName === name) {
         active.note = note || null;
+        active.workMode = workMode;
         continue;
       }
 
@@ -207,6 +212,7 @@ export function claimFallbackDesk(input: FallbackClaimInput) {
         deskId,
         userName: name,
         note: note || null,
+        workMode,
         startAt: dayStart,
         endAt: addDays(dayStart, 1),
       });

@@ -19,6 +19,9 @@ const claimSchema = z
     note: z.string().trim().max(140).optional().default(""),
     action: z.enum(["claim", "release"]),
     days: z.array(z.number().int().min(1).max(7)).min(1),
+    workModeByDay: z.record(z.string(), z.enum(["office", "remote"]))
+      .optional()
+      .default({}),
     anchorDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
     repeatWeeks: z.number().int().min(1).max(26).optional().default(1),
   })
@@ -56,7 +59,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const { deskId, name, note, action, days, anchorDate, repeatWeeks } = parsed.data;
+  const { deskId, name, note, action, days, workModeByDay, anchorDate, repeatWeeks } = parsed.data;
   const uniqueDays = [...new Set(days)].sort((a, b) => a - b);
   const layout = await getLayoutPayload();
   const knownDeskIds = layout.customDesks.map((item) => item.id);
@@ -70,6 +73,7 @@ export async function POST(request: Request) {
         note,
         action,
         days: uniqueDays,
+        workModeByDay,
         anchorDate,
         repeatWeeks,
         knownDeskIds,
@@ -115,6 +119,8 @@ export async function POST(request: Request) {
             continue;
           }
 
+          const workMode = workModeByDay[String(dayIndex)] ?? "office";
+
           if (existing && existing.userName !== name) {
             throw new Error(`OCCUPIED_DAY:${dayIndex}`);
           }
@@ -122,7 +128,10 @@ export async function POST(request: Request) {
           if (existing && existing.userName === name) {
             await tx.deskReservation.update({
               where: { id: existing.id },
-              data: { note: note || null },
+              data: {
+                note: note || null,
+                workMode,
+              },
             });
             continue;
           }
@@ -132,6 +141,7 @@ export async function POST(request: Request) {
               deskId,
               userName: name,
               note: note || null,
+              workMode,
               startAt: start,
               endAt: end,
             },
@@ -165,6 +175,7 @@ export async function POST(request: Request) {
         note,
         action,
         days: uniqueDays,
+        workModeByDay,
         anchorDate,
         repeatWeeks,
         knownDeskIds,

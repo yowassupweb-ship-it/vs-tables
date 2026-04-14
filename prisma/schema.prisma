@@ -11,6 +11,11 @@ datasource db {
   provider = "postgresql"
 }
 
+enum WorkMode {
+  office
+  remote
+}
+
 model Desk {
   id           String            @id
   label        String            @unique
@@ -26,6 +31,7 @@ model DeskReservation {
   deskId    String
   userName  String
   note      String?
+  workMode  WorkMode @default(office)
   startAt   DateTime @default(now())
   endAt     DateTime?
   createdAt DateTime @default(now())

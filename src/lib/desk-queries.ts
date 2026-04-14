@@ -33,6 +33,7 @@ export type DeskWeekSlot = {
   date: string;
   owner: string | null;
   note: string | null;
+  workMode: "office" | "remote";
 };
 
 const UNIFIED_DESK_WIDTH = 6;
@@ -241,14 +242,19 @@ export async function getDeskWeekSlots(deskId: string, anchorDate?: string): Pro
         startAt: true,
         userName: true,
         note: true,
+        workMode: true,
       },
     });
 
-    const byDay = new Map<string, { owner: string; note: string | null }>();
+    const byDay = new Map<string, { owner: string; note: string | null; workMode: "office" | "remote" }>();
     for (const reservation of reservations) {
       const key = reservation.startAt.toISOString().slice(0, 10);
       if (!byDay.has(key)) {
-        byDay.set(key, { owner: reservation.userName, note: reservation.note ?? null });
+        byDay.set(key, {
+          owner: reservation.userName,
+          note: reservation.note ?? null,
+          workMode: reservation.workMode,
+        });
       }
     }
 
@@ -263,6 +269,7 @@ export async function getDeskWeekSlots(deskId: string, anchorDate?: string): Pro
         date: key,
         owner: slot?.owner ?? null,
         note: slot?.note ?? null,
+        workMode: slot?.workMode ?? "office",
       };
     });
   } catch (error) {

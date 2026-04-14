@@ -33,7 +33,10 @@ type DeskWeekSlot = {
   date: string;
   owner: string | null;
   note: string | null;
+  workMode: WorkMode;
 };
+
+type WorkMode = "office" | "remote";
 
 type LayoutSnapshot = {
   deskOverrides: Record<string, { x: number; y: number }>;
@@ -60,6 +63,7 @@ export function OfficeDashboard() {
   const [desks, setDesks] = useState<DeskMapItem[]>([]);
   const [selectedDeskId, setSelectedDeskId] = useState<string>("desk-01");
   const [weekSlots, setWeekSlots] = useState<DeskWeekSlot[]>([]);
+  const [dayModeByIndex, setDayModeByIndex] = useState<Record<number, WorkMode>>({});
   const [selectedDayIndexes, setSelectedDayIndexes] = useState<number[]>(() => [getDayIndexFromDateKey(getTodayDateKey())]);
   const [hoveredDeskId, setHoveredDeskId] = useState<string | null>(null);
   const [hoverTooltipPosition, setHoverTooltipPosition] = useState<{ left: number; top: number } | null>(null);
@@ -161,6 +165,33 @@ export function OfficeDashboard() {
     return day === 0 ? 7 : day;
   }, [selectedDate]);
 
+  const displayWeekSlots = useMemo(() => {
+    if (weekSlots.length > 0) {
+      return weekSlots;
+    }
+
+    const parsedAnchor = new Date(`${selectedDate}T00:00:00`);
+    const safeAnchor = Number.isNaN(parsedAnchor.getTime()) ? new Date() : parsedAnchor;
+    const weekStart = new Date(safeAnchor);
+    const day = weekStart.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    weekStart.setDate(weekStart.getDate() + diffToMonday);
+
+    return ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map((dayLabel, index) => {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + index);
+
+      return {
+        dayIndex: index + 1,
+        dayLabel,
+        date: date.toISOString().slice(0, 10),
+        owner: null,
+        note: null,
+        workMode: "office" as const,
+      };
+    });
+  }, [selectedDate, weekSlots]);
+
   const selectedDateLabel = useMemo(() => {
     const date = new Date(`${selectedDate}T00:00:00`);
     if (Number.isNaN(date.getTime())) {
@@ -177,13 +208,15 @@ export function OfficeDashboard() {
 
   const handleDeskSelect = useCallback((deskId: string) => {
     if (deskId !== selectedDeskId) {
+      setSelectedDayIndexes([getDayIndexFromDateKey(selectedDate)]);
+      setDayModeByIndex({});
       setName("");
       setNote("");
       setError(null);
     }
 
     setSelectedDeskId(deskId);
-  }, [selectedDeskId]);
+  }, [selectedDate, selectedDeskId]);
 
   useEffect(() => {
     const raw = localStorage.getItem("office-map-layout-overrides");
@@ -673,6 +706,25 @@ export function OfficeDashboard() {
     });
   }, []);
 
+  const setDayMode = useCallback((dayIndex: number, mode: WorkMode) => {
+    setDayModeByIndex((current) => ({
+      ...current,
+      [dayIndex]: mode,
+    }));
+  }, []);
+
+  useEffect(() => {
+    setDayModeByIndex((current) => {
+      const next: Record<number, WorkMode> = { ...current };
+      for (const slot of weekSlots) {
+        if (!next[slot.dayIndex]) {
+          next[slot.dayIndex] = slot.workMode ?? "office";
+        }
+      }
+      return next;
+    });
+  }, [weekSlots]);
+
   const renameDesk = useCallback((desk: DeskMapItem) => {
     if (!layoutEditMode) {
       return;
@@ -891,6 +943,11 @@ export function OfficeDashboard() {
           note,
           action,
           days: selectedDayIndexes,
+          workModeByDay: selectedDayIndexes.reduce<Record<string, WorkMode>>((acc, dayIndex) => {
+            const slot = weekSlots.find((item) => item.dayIndex === dayIndex);
+            acc[String(dayIndex)] = dayModeByIndex[dayIndex] ?? slot?.workMode ?? "office";
+            return acc;
+          }, {}),
           anchorDate: selectedDate,
           repeatWeeks: repeatWeekly ? repeatWeeks : 1,
         }),
@@ -1110,14 +1167,14 @@ export function OfficeDashboard() {
 
       <section className="panel details-panel">
         <div className="panel-title-row">
-          <h3>Слоты по дням недели</h3>
+          <h3>Столы по дням недели</h3>
           <p>Стол: {selectedDesk?.label ?? "-"}</p>
         </div>
 
         {selectedDesk ? (
           <>
             <div className="week-slots">
-              {weekSlots.map((slot) => {
+              {displayWeekSlots.map((slot) => {
                 const isSelected = selectedDayIndexes.includes(slot.dayIndex);
 
                 return (
@@ -1130,7 +1187,15 @@ export function OfficeDashboard() {
                     />
                     <span className="week-day">{slot.dayLabel}</span>
                     <span className="week-date">{format(new Date(`${slot.date}T00:00:00`), "dd.MM")}</span>
-                    <span className="week-owner">{slot.owner ?? "Свободный слот"}</span>
+                    <span className="week-owner">{slot.owner ?? "Свободно"}</span>
+                    <select
+                      className="week-mode-select"
+                      value={dayModeByIndex[slot.dayIndex] ?? "office"}
+                      onChange={(event) => setDayMode(slot.dayIndex, event.target.value as WorkMode)}
+                    >
+                      <option value="office">Офис</option>
+                      <option value="remote">Удаленка</option>
+                    </select>
                   </label>
                 );
               })}
@@ -1140,12 +1205,7 @@ export function OfficeDashboard() {
               <p className="status-label">Текущий статус</p>
               <p className="status-value">{selectedDesk.currentOwner ? "Занят" : "Свободен"}</p>
               {selectedDesk.currentOwner ? (
-                <p className="status-owner">
-                  {selectedDesk.currentOwner}
-                  {selectedDesk.occupiedSince
-                    ? ` · c ${formatDistanceToNow(new Date(selectedDesk.occupiedSince), { addSuffix: true, locale: ru })}`
-                    : ""}
-                </p>
+                <p className="status-owner">{selectedDesk.currentOwner}</p>
               ) : null}
               {selectedDesk.currentNote ? <p className="status-note">{selectedDesk.currentNote}</p> : null}
             </div>

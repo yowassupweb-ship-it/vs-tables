@@ -88,6 +88,13 @@ a {
   font-size: 14px;
 }
 
+.mobile-scroll-hint {
+  display: none;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .date-pick-row {
   margin-top: 8px;
   display: flex;
@@ -304,13 +311,13 @@ a {
 
 .week-slot {
   display: grid;
-  grid-template-columns: auto 36px 56px 1fr;
+  grid-template-columns: auto 36px 56px 1fr 108px;
   gap: 10px;
   align-items: center;
-  border: 1px solid var(--line);
+  border: 3px solid #1f9d48;
   border-radius: 10px;
   padding: 8px 10px;
-  background: rgba(17, 24, 39, 0.03);
+  background: rgba(35, 168, 74, 0.1);
 }
 
 .week-slot input {
@@ -319,7 +326,13 @@ a {
 }
 
 .week-slot.busy {
-  background: rgba(242, 143, 84, 0.12);
+  border-color: #d43f3f;
+  background: rgba(212, 63, 63, 0.12);
+}
+
+.week-slot.free {
+  border-color: #1f9d48;
+  background: rgba(35, 168, 74, 0.1);
 }
 
 .week-day {
@@ -334,6 +347,19 @@ a {
 .week-owner {
   color: var(--muted);
   font-size: 12px;
+  font-weight: 700;
+}
+
+.week-mode-select {
+  border-radius: 8px;
+  border: 2px solid rgba(17, 24, 39, 0.32);
+  background: #fff;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  min-height: 32px;
 }
 
 .desk-form {
@@ -430,6 +456,10 @@ a {
 }
 
 @media (max-width: 900px) {
+  .dashboard-grid {
+    gap: 12px;
+  }
+
   body {
     padding: 14px;
   }
@@ -483,6 +513,9 @@ a {
     margin-left: -14px;
     margin-right: -14px;
     padding: 0 14px 8px;
+    border-radius: 10px;
+    border-top: 1px solid rgba(24, 28, 39, 0.08);
+    border-bottom: 1px solid rgba(24, 28, 39, 0.08);
   }
 
   .office-canvas {
@@ -491,15 +524,28 @@ a {
   }
 
   .week-slot {
-    grid-template-columns: 20px 32px 52px 1fr;
+    grid-template-columns: 20px 32px 52px 1fr 100px;
     gap: 8px;
     padding: 8px;
+  }
+
+  .week-slots {
+    max-height: 40vh;
+    overflow-y: auto;
+    padding-right: 2px;
   }
 
   .week-owner {
     font-size: 11px;
     line-height: 1.25;
     word-break: break-word;
+  }
+
+  .week-mode-select {
+    font-size: 12px;
+    font-weight: 800;
+    min-height: 30px;
+    padding: 5px 6px;
   }
 
   .desk-form input {
@@ -535,9 +581,22 @@ a {
     font-size: 13px;
   }
 
+  .mobile-scroll-hint {
+    display: block;
+  }
+
+  .layout-tools-row {
+    gap: 8px;
+  }
+
+  .layout-reset-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+  }
+
   .office-canvas {
-    min-width: 860px;
-    min-height: 520px;
+    min-width: 820px;
+    min-height: 500px;
   }
 
   .office-canvas-scroll {
@@ -555,12 +614,28 @@ a {
 }
 
 @media (max-width: 520px) {
+  .map-panel,
+  .details-panel,
+  .chart-panel {
+    padding: 10px;
+  }
+
+  .panel-title-row h2,
+  .panel-title-row h3 {
+    font-size: 17px;
+  }
+
   .layout-switch {
     font-size: 12px;
   }
 
+  .office-canvas {
+    min-width: 780px;
+    min-height: 470px;
+  }
+
   .week-slot {
-    grid-template-columns: 18px 28px 46px 1fr;
+    grid-template-columns: 18px 28px 46px 1fr 90px;
     gap: 6px;
     padding: 7px;
   }
