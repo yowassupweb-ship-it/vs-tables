@@ -185,14 +185,6 @@ export function claimFallbackDesk(input: FallbackClaimInput) {
           continue;
         }
 
-        if (active.userName !== name) {
-          return {
-            ok: false as const,
-            status: 403,
-            error: `Слот ${WEEKDAY_LABELS[dayIndex - 1]} занят другим сотрудником`,
-          };
-        }
-
         store.reservations = store.reservations.filter((reservation) => reservation.id !== active.id);
         continue;
       }

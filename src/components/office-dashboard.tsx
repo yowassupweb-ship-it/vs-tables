@@ -860,22 +860,9 @@ export function OfficeDashboard() {
     }
 
     if (action === "release") {
-      if (!enteredName) {
-        const owners = [...new Set(selectedSlots.map((slot) => slot.owner).filter((owner): owner is string => Boolean(owner)))];
-
-        if (owners.length === 1) {
-          requestName = owners[0];
-        } else if (owners.length === 0) {
-          setError("Для выбранных дней стол уже свободен");
-          return;
-        } else {
-          setError("Для освобождения этих дней введите ФИО владельца");
-          return;
-        }
-      }
-
-      if (!fullNameRegex.test(requestName)) {
-        setError("Введите имя и фамилию владельца");
+      const hasAnyBusySlot = selectedSlots.some((slot) => Boolean(slot.owner));
+      if (!hasAnyBusySlot) {
+        setError("Для выбранных дней стол уже свободен");
         return;
       }
     }
@@ -1005,6 +992,7 @@ export function OfficeDashboard() {
             style={{ display: "none" }}
           />
           {layoutStatus ? <p>{layoutStatus}</p> : null}
+          <p className="mobile-scroll-hint">Свайпайте схему влево/вправо</p>
         </div>
 
         <div className="office-canvas-scroll">

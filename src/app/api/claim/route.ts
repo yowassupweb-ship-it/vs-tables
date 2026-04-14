@@ -12,20 +12,29 @@ export const runtime = "nodejs";
 
 const fullNameRegex = /^[A-Za-zА-Яа-яЁё-]+\s+[A-Za-zА-Яа-яЁё-]+(?:\s+[A-Za-zА-Яа-яЁё-]+)*$/;
 
-const claimSchema = z.object({
-  deskId: z.string().min(1),
-  name: z
-    .string()
-    .trim()
-    .min(5)
-    .max(80)
-    .refine((value) => fullNameRegex.test(value), "Укажите имя и фамилию"),
-  note: z.string().trim().max(140).optional().default(""),
-  action: z.enum(["claim", "release"]),
-  days: z.array(z.number().int().min(1).max(7)).min(1),
-  anchorDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  repeatWeeks: z.number().int().min(1).max(26).optional().default(1),
-});
+const claimSchema = z
+  .object({
+    deskId: z.string().min(1),
+    name: z.string().trim().max(80).optional().default(""),
+    note: z.string().trim().max(140).optional().default(""),
+    action: z.enum(["claim", "release"]),
+    days: z.array(z.number().int().min(1).max(7)).min(1),
+    anchorDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    repeatWeeks: z.number().int().min(1).max(26).optional().default(1),
+  })
+  .superRefine((value, ctx) => {
+    if (value.action !== "claim") {
+      return;
+    }
+
+    if (value.name.length < 5 || !fullNameRegex.test(value.name)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Укажите имя и фамилию",
+        path: ["name"],
+      });
+    }
+  });
 
 function getDayRange(dayIndex: number, anchorDate?: string, weekOffset = 0) {
   const parsedAnchor = anchorDate ? new Date(`${anchorDate}T00:00:00`) : new Date();
@@ -102,10 +111,6 @@ export async function POST(request: Request) {
               continue;
             }
 
-            if (existing.userName !== name) {
-              throw new Error(`FORBIDDEN_DAY:${dayIndex}`);
-            }
-
             await tx.deskReservation.delete({ where: { id: existing.id } });
             continue;
           }
@@ -138,21 +143,13 @@ export async function POST(request: Request) {
     await publishDeskEvent({
       type: "desk-updated",
       deskId,
-      actorName: name,
+      actorName: name || "system",
       active: action === "claim",
       at: new Date().toISOString(),
     });
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith("FORBIDDEN_DAY:")) {
-      const dayIndex = Number(error.message.split(":")[1] ?? "1");
-      return NextResponse.json(
-        { error: `Слот ${WEEKDAY_LABELS[dayIndex - 1]} занят другим сотрудником` },
-        { status: 403 },
-      );
-    }
-
     if (error instanceof Error && error.message.startsWith("OCCUPIED_DAY:")) {
       const dayIndex = Number(error.message.split(":")[1] ?? "1");
       return NextResponse.json(
@@ -183,7 +180,7 @@ export async function POST(request: Request) {
       await publishDeskEvent({
         type: "desk-updated",
         deskId,
-        actorName: name,
+        actorName: name || "system",
         active: action === "claim",
         at: new Date().toISOString(),
       });
