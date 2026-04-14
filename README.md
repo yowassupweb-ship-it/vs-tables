@@ -45,6 +45,8 @@ npm run dev
 - `npm run build` - production-сборка
 - `npm run start` - запуск production-сервера
 
+`prisma generate` запускается автоматически при `npm install`/`npm ci` и перед `npm run build`.
+
 ## Деплой на Linux (Ubuntu)
 
 1. Установить Node.js LTS, PostgreSQL, Redis.

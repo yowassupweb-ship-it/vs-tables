@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
+    "prebuild": "prisma generate",
     "build": "next build --webpack",
     "start": "next start",
+    "postinstall": "prisma generate",
     "lint": "eslint",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
